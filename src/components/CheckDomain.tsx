@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { useDomainValidation } from '../hooks/validate';
+import { useRouter } from "next/router";
 var w3d = require("@web3yak/web3domain");
 import {
   Box,
@@ -13,7 +14,8 @@ import {
   Stack,
   Spinner,
   useColorModeValue,
-  SimpleGrid
+  SimpleGrid,
+  useToast
 } from "@chakra-ui/react";
 
 
@@ -26,23 +28,43 @@ const delay = (ms: number | undefined) => new Promise(
 );
 
 export function CheckDomain(props: Props) {
+  const toast = useToast();
   const { isValidDomain, validateDomain } = useDomainValidation();
   const [domainAddr, setDomainAddr] = useState('');
   const [isLoading, setIsLoading] = useState(true);
+  const [isEnv, setEnv] = useState(true);
   const [error, setError] = useState('');
   const url = "https://w3d.name/api/v1/index.php?domain=" + props.domain;
   //console.log(url);
-
+  function showAlert(err:any) {
+    toast({
+      title: "Notice",
+      description: err,
+      status: "warning",
+      duration: 4000,
+      isClosable: false,
+    });
+  }
 
   useEffect(() => {
     setIsLoading(true); // Set isLoading to true whenever the effect runs
+    
     const settings = {
       matic_rpc_url: process.env.NEXT_PUBLIC_MATIC ,
       eth_rpc_url: process.env.NEXT_PUBLIC_ETH ,
       fvm_rpc_url: process.env.NEXT_PUBLIC_FILECOIN
     };
+    try{
     const resolve = new w3d.Web3Domain(settings);
-    async function makeRequest() {
+    makeRequest(resolve);
+    }
+    catch (error) {
+      console.error(error);
+      console.log("*******************************");
+      showAlert("Server Configuration error. Check environment variable and configuration files.");
+    }
+ 
+    async function makeRequest(resolve: any) {
       //console.log('before');
 
       validateDomain(props.domain);
@@ -77,8 +99,8 @@ export function CheckDomain(props: Props) {
       //console.log('after');
     }
 
-    makeRequest();
-
+  
+ 
 
   }, [props.domain, isValidDomain]); // The empty dependency array ensures this effect runs only once on mount
 

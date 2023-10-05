@@ -23,12 +23,12 @@ Fork repository and make required changes before deployment
 **Specify Environment variable. If local development , crate a file .env.local Make variable blank if not required but do not delete or remove any key**
 
 ```sh
-NEXT_PUBLIC_MATIC = "https://polygon-mainnet.g.alchemy.com/v2/......j4zryx"
-NEXT_PUBLIC_ETH =  "https://eth-mainnet.g.alchemy.com/v2/......0bmp297MG7BjOKl"
-NEXT_PUBLIC_FILECOIN = "https://api.node.glif.io/rpc/v1"
-NEXT_PUBLIC_INFURA_KEY= 3ff237d4c.......71251407
-NEXT_PUBLIC_ALCHEMY_KEY= wdUDrk...........fO1InE7
-NEXT_PUBLIC_PASSWORD= Usa //Password for admin functions. Do not revel to anyone. 
+NEXT_PUBLIC_MATIC=get_rpc_url_for_polygon_and_do_not_remove_me_if_not_required
+NEXT_PUBLIC_ETH=get_rpc_url_for_ethereum_and_do_not_remove_me_if_not_required
+NEXT_PUBLIC_FILECOIN=https://api.node.glif.io/rpc/v1
+NEXT_PUBLIC_INFURA_KEY=get_key_from_infura
+NEXT_PUBLIC_ALCHEMY_KEY=get_key_from_alchemy_or_leave_it_as_it_is
+NEXT_PUBLIC_PASSWORD=keep_any_secure_password_for_admin
 ```
 
 **Modify Web3Domain studio configuration file**

@@ -1,15 +1,14 @@
 import { useRouter } from "next/router";
 import React, { useEffect, useState } from "react";
-var w3d = require("@web3yak/web3domain");
 import { useURLValidation } from "../../../hooks/validate";
 import { useJsonValue } from "../../../hooks/jsonData";
-import { generateJson, generateImage } from '../../../hooks/ipfs';
-import TokenURI from '../../../components/TokenURI'; // Adjust the path to the actual location
-import { useAccount, useNetwork } from "wagmi";
-import { useNetworkValidation, checkContract } from '../../../hooks/useNetworkValidation';
+import { generateJson, generatePreview } from "../../../hooks/ipfs";
+import TokenURI from "../../../components/TokenURI"; // Adjust the path to the actual location
+import { useAccount } from "wagmi";
+import { useNetworkValidation } from "../../../hooks/useNetworkValidation";
 import Link from "next/link";
-import useDomainInfo from '../../../hooks/domainInfo';
-import useGlobal from '../../../hooks/global';
+import useDomainInfo from "../../../hooks/domainInfo";
+import useGlobal from "../../../hooks/global";
 import {
   Icon,
   Box,
@@ -38,12 +37,6 @@ import {
   CircularProgress,
   Divider,
   Kbd,
-  FormHelperText,
-  Switch,
-  useBoolean,
-  InputRightElement,
-  Grid,
-  GridItem
 } from "@chakra-ui/react";
 import { Tabs, TabList, TabPanels, Tab, TabPanel } from "@chakra-ui/react";
 import {
@@ -51,7 +44,7 @@ import {
   AlertIcon,
   AlertTitle,
   AlertDescription,
-} from '@chakra-ui/react'
+} from "@chakra-ui/react";
 
 import {
   FaBitcoin,
@@ -69,19 +62,17 @@ import {
   FaRightFromBracket,
   FaForward,
   FaExternalLinkAlt,
-  FaLink
+  FaLink,
 } from "react-icons/fa";
 import {
-
   DOMAIN_IMAGE_URL,
   DOMAIN_TLD,
   DOMAIN_DESCRIPTION,
   NETWORK_ERROR,
 } from "../../../configuration/Config";
 
-
 export default function Manage() {
-  const { isConnected, connector, address } = useAccount();
+  const { address } = useAccount();
   const router = useRouter();
   const { manage } = router.query;
   const domain = manage ? String(manage).toLowerCase() : "";
@@ -91,7 +82,7 @@ export default function Manage() {
   const [jsonData, setJsonData] = useState(null); // Initialize jsonData as null
   const [jsonDataNew, setJsonDataNew] = useState(null); // Initialize jsonData as null
   const { getValue } = useJsonValue(jsonData);
-  const [claimUrl, setClaimUrl] = useState('http://web3domain.org');
+  const [claimUrl, setClaimUrl] = useState("http://web3domain.org");
   const [image, setImage] = useState(DOMAIN_IMAGE_URL);
   const [isMainLoading, setIsMainLoading] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -115,9 +106,7 @@ export default function Manage() {
 
   const [web3Url, setWeb3Url] = useState("");
   const [web2Url, setWeb2Url] = useState("");
-  const [webUrl, setWebUrl] = useState('');
-  const [newUrl, setNewUrl] = useState('');
-  const [flag, setFlag] = useBoolean();
+  const [flag, setFlag] = useState(false);
 
   const { validateURL } = useURLValidation();
   const handleURLChange = (event) => {
@@ -132,25 +121,19 @@ export default function Manage() {
     }
   };
 
-
   const handleUpload = async () => {
     console.log("Verify record of  " + domain);
     setIsLoading(true);
-    if (domain !== 'undefined') {
-
-     // console.log(jsonData);
+    if (domain !== "undefined") {
+      // console.log(jsonData);
 
       await genJson();
-
     }
-  }
-
-
-
+  };
 
   async function genJson() {
-    //handleSubmit(null); 
-   // console.log(jsonDataNew);
+    //handleSubmit(null);
+    // console.log(jsonDataNew);
     const response = await generateJson(jsonDataNew, domain);
     if (response.ok) {
       const responseText = await response.text();
@@ -158,28 +141,57 @@ export default function Manage() {
       try {
         const responseObject = JSON.parse(responseText);
         const cidValue = responseObject.cid;
-        console.log('https://ipfs.io/ipfs/' + cidValue);
-        setClaimUrl('https://ipfs.io/ipfs/' + cidValue);
+        console.log("https://ipfs.io/ipfs/" + cidValue);
+        setClaimUrl("https://ipfs.io/ipfs/" + cidValue);
         setIsLoading(false);
-
-
       } catch (error) {
         console.log("Error parsing JSON:", error);
       }
-
     } else {
       console.log("Error generating JSON.");
       setIsLoading(false);
     }
-
   }
+
+  const getLayout = async () => {
+    console.log("cid of layout  " + domain);
+    console.log(jsonDataNew);
+    if (jsonDataNew) {
+      const response = await generatePreview(jsonDataNew, domain, "true");
+      if (response.ok) {
+        const responseText = await response.text();
+        try {
+          const responseObject = JSON.parse(responseText);
+          const cidValue = responseObject.cid;
+          const cidUrl = "https://ipfs.io/ipfs/" + cidValue;
+          console.log(cidUrl);
+          setWeb2Url(cidUrl);
+
+          const updatedJsonData = {
+            ...jsonDataNew,
+            records: {
+              ...jsonDataNew.records,
+
+              50: { type: "web_url", value: cidUrl },
+            },
+          };
+          console.log(web2Url);
+          console.log(updatedJsonData);
+          setJsonDataNew(updatedJsonData);
+        } catch (error) {
+          console.log("Error parsing JSON of layout:", error);
+        }
+      }
+    }
+    setFlag(false);
+  };
 
   const handleSubmit = (event) => {
     if (event) {
       event.preventDefault();
     }
 
-    console.log('Saving record..');
+    console.log("Saving record..");
 
     const array = {
       name: manage,
@@ -222,7 +234,7 @@ export default function Manage() {
         },
         9: { type: "notes", value: notes },
         50: { type: "web_url", value: web2Url },
-        51: { type: "web3_url", value: newUrl },
+        51: { type: "web3_url", value: web3Url },
       },
     };
 
@@ -231,19 +243,18 @@ export default function Manage() {
     console.log(array);
 
     setJsonDataNew(array);
+    setFlag(true);
   };
-
-  useEffect(() => {
-    console.log(image);
-    // handleSubmit(null);
-    //genJson();
-  }, [image]);
 
   useEffect(() => {
     setIsMainLoading(true);
     const randomNumber = Math.random(); // Generate a random number
     if (domain) {
-      const url = "https://w3d.name/api/v1/index.php?domain=" + domain + "&update=yes&" + randomNumber;
+      const url =
+        "https://w3d.name/api/v1/index.php?domain=" +
+        domain +
+        "&update=yes&" +
+        randomNumber;
       // console.log(url);
       const fetchData = async () => {
         try {
@@ -251,7 +262,7 @@ export default function Manage() {
           const json = await response.json();
           setJsonData(json); // Store the json response in the component's state
           setIsMainLoading(false);
-          // console.log(json);
+          console.log(json);
         } catch (error) {
           console.log("error", error);
         }
@@ -262,8 +273,11 @@ export default function Manage() {
 
   useEffect(() => {
     if (jsonData) {
-      var img = jsonData?.image && jsonData.image.startsWith("ipfs://") ? jsonData.image.replace("ipfs://", "https://ipfs.io/ipfs/") : jsonData?.image;
-      console.log(img);
+      var img =
+        jsonData?.image && jsonData.image.startsWith("ipfs://")
+          ? jsonData.image.replace("ipfs://", "https://ipfs.io/ipfs/")
+          : jsonData?.image;
+      //console.log(img);
       setImage(jsonData && img);
       setProfile(jsonData && getValue("name"));
       setEmail(jsonData && getValue("email"));
@@ -283,48 +297,37 @@ export default function Manage() {
       setSol(jsonData && getValue("sol"));
       setNotes(jsonData && getValue("notes"));
 
-      //IPFS URL of Web3Domain
-      const isValidIPFS = validateURL(getValue("web_url"));
-      if(isValidIPFS)
-      {
-        setWeb2Url(jsonData && getValue("web_url"));
+      const isValidHost = validateURL(getValue("web3_url"));
+      if (isValidHost && getValue("web3_url") != "") {
+        //User Website
+        setWeb3Url(jsonData && getValue("web3_url"));
+        //IPFS website
+        setWeb2Url("");
+      } else {
+        //IPFS URL of Web3Domain
+        const isValidIPFS = validateURL(getValue("web_url"));
+        if (isValidIPFS) {
+          setWeb2Url(jsonData && getValue("web_url"));
+        } else {
+          if (getValue("web_url") == "") {
+            setWeb2Url("");
+          } else {
+            setWeb2Url(
+              jsonData && "https://ipfs.io/ipfs/" + getValue("web_url")
+            );
+          }
+        }
       }
-      else
-      {
-       
-        setWeb2Url(jsonData && 'https://ipfs.io/ipfs/' + getValue("web_url"));
-      }
-      //User Website
-      setWeb3Url(jsonData && getValue("web3_url"));
-
-
-
     }
   }, [jsonData]);
 
   useEffect(() => {
-    if (web3Url !== '') {
-      setWebUrl(web3Url);
-      //console.log(web3Url);
-      //setFlag.on(); // Set flag to true
-    } else if (web2Url !== '') {
-      setWebUrl(web2Url);
-      // console.log(web2Url);
-      //setFlag.off(); // Set flag to false
+    async function get_cid_of_layout() {
+      if (flag) {
+        await getLayout();
+      }
     }
-
-
-
-  }, [webUrl, web3Url, web2Url, newUrl]);
-
-  useEffect(() => {
-    if (flag) {
-      setNewUrl(web3Url);
-      //console.log("ON");
-    } else {
-      setNewUrl('');
-      // console.log("OFF");
-    }
+    get_cid_of_layout();
   }, [flag]);
 
   return (
@@ -335,17 +338,18 @@ export default function Manage() {
       borderRadius="md"
       color={useColorModeValue("gray.700", "whiteAlpha.900")}
       shadow="base"
-      minWidth='max-content'
+      minWidth="max-content"
     >
-
       <Container
-        maxW='3xl'
+        maxW="3xl"
         alignItems={"center"}
         justifyContent={"center"}
         alignContent={"center"}
         textAlign="center"
       >
-        <Kbd><Link href={`/domain/info/${domain}`}>{domain}</Link></Kbd>
+        <Kbd>
+          <Link href={`/domain/info/${domain}`}>{domain}</Link>
+        </Kbd>
         <Box
           textAlign="center"
           alignContent={"center"}
@@ -354,9 +358,7 @@ export default function Manage() {
           bgSize={"lg"}
           maxH={"80vh"}
         >
-          {isNetworkValid && domain.endsWith('.' + DOMAIN_TLD) ? (
-
-
+          {isNetworkValid && domain.endsWith("." + DOMAIN_TLD) ? (
             <Stack
               as={Box}
               textAlign={"center"}
@@ -365,96 +367,87 @@ export default function Manage() {
               spacing={{ base: 2, md: 2 }}
               py={{ base: 10, md: 2 }}
             >
-
-          
-                <Stack>
-                  <Heading as="h5" size="sm">
-                    Blockchain Record
-                  </Heading>
-                  <Divider />
-                  {isMainLoading ? (
-                    <Box padding="12" boxShadow="lg" bg="white">
-                      <SkeletonCircle size="10" />
-                      <SkeletonText
-                        mt="4"
-                        noOfLines={4}
-                        spacing="4"
-                        skeletonHeight="3"
-                      />
-                    </Box>
-                  ) : (
-
-                    <div>
-                      {address == ownerAddress ? (
-
-                        <form onSubmit={handleSubmit}>
-                          <Tabs isFitted variant="enclosed">
-                            <TabList mb="1em">
-
-                              <Tab>General</Tab>
-                              <Tab>Social</Tab>
-                              <Tab>Wallet</Tab>
-                              <Tab>Notes</Tab>
-
-                            </TabList>
-                            <TabPanels>
-                      
-                              <TabPanel>
-                                <Stack spacing={2}>
-
-
-                                  <FormControl isRequired mt={2}>
-                                    <FormLabel>Profile Information</FormLabel>
+              <Stack>
+                <Heading as="h5" size="sm">
+                  Blockchain Record
+                </Heading>
+                <Divider />
+                {isMainLoading ? (
+                  <Box padding="12" boxShadow="lg" bg="white">
+                    <SkeletonCircle size="10" />
+                    <SkeletonText
+                      mt="4"
+                      noOfLines={4}
+                      spacing="4"
+                      skeletonHeight="3"
+                    />
+                  </Box>
+                ) : (
+                  <div>
+                    {address == ownerAddress ? (
+                      <form onSubmit={handleSubmit}>
+                        <Tabs isFitted variant="enclosed">
+                          <TabList mb="1em">
+                            <Tab>General</Tab>
+                            <Tab>Social</Tab>
+                            <Tab>Wallet</Tab>
+                            <Tab>Notes</Tab>
+                          </TabList>
+                          <TabPanels>
+                            <TabPanel>
+                              <Stack spacing={2}>
+                                <FormControl isRequired mt={2}>
+                                  <FormLabel>Profile Information</FormLabel>
+                                  <Input
+                                    type="text"
+                                    placeholder="Company / Your name"
+                                    size="md"
+                                    value={profile}
+                                    onChange={(event) =>
+                                      setProfile(event.currentTarget.value)
+                                    }
+                                  />
+                                </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaEnvelope color="gray.300" />
+                                    </InputLeftElement>
                                     <Input
-                                      type="text"
-                                      placeholder="Company / Your name"
+                                      type="email"
+                                      placeholder="Email Address"
                                       size="md"
-                                      value={profile}
+                                      value={email}
                                       onChange={(event) =>
-                                        setProfile(event.currentTarget.value)
+                                        setEmail(event.currentTarget.value)
                                       }
                                     />
-                                  </FormControl>
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaEnvelope color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="email"
-                                        placeholder="Email Address"
-                                        size="md"
-                                        value={email}
-                                        onChange={(event) =>
-                                          setEmail(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaPhoneAlt color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="tel"
-                                        placeholder="Phone number"
-                                        value={phone}
-                                        size="md"
-                                        onChange={(event) =>
-                                          setPhone(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
-
-                                  <FormControl>
+                                <FormControl>
                                   <InputGroup>
-                                  <InputLeftElement pointerEvents="none">
-                                        <FaLink color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaPhoneAlt color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="tel"
+                                      placeholder="Phone number"
+                                      value={phone}
+                                      size="md"
+                                      onChange={(event) =>
+                                        setPhone(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
+
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaLink color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
                                       type="url"
                                       placeholder="Website Link"
                                       size="md"
@@ -464,288 +457,312 @@ export default function Manage() {
                                         handleURLChange(event); // Validate and perform necessary actions
                                       }}
                                     />
-                                    </InputGroup>
-                            {url !== '' && (
-    <FormErrorMessage>
-      Enter valid website link
-    </FormErrorMessage>
-  )}
-                                  </FormControl>
-                                </Stack>
-                              </TabPanel>
+                                  </InputGroup>
+                                  {url !== "" && (
+                                    <FormErrorMessage>
+                                      Enter valid website link
+                                    </FormErrorMessage>
+                                  )}
+                                </FormControl>
+                              </Stack>
+                            </TabPanel>
 
-                              <TabPanel>
-                                <Stack spacing={2}>
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaTwitter color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="url"
-                                        placeholder="Twitter Link"
-                                        value={twitter}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setTwitter(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                            <TabPanel>
+                              <Stack spacing={2}>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaTwitter color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="url"
+                                      placeholder="Twitter Link"
+                                      value={twitter}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setTwitter(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaTelegram color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="url"
-                                        placeholder="Telegram Link"
-                                        size="sm"
-                                        value={telegram}
-                                        onChange={(event) =>
-                                          setTelegram(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaTelegram color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="url"
+                                      placeholder="Telegram Link"
+                                      size="sm"
+                                      value={telegram}
+                                      onChange={(event) =>
+                                        setTelegram(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaFacebookSquare color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="url"
-                                        placeholder="Facebook Link"
-                                        value={facebook}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setFacebook(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaFacebookSquare color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="url"
+                                      placeholder="Facebook Link"
+                                      value={facebook}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setFacebook(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaYoutube color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="url"
-                                        placeholder="Youtube Link"
-                                        size="sm"
-                                        value={youtube}
-                                        onChange={(event) =>
-                                          setYoutube(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaYoutube color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="url"
+                                      placeholder="Youtube Link"
+                                      size="sm"
+                                      value={youtube}
+                                      onChange={(event) =>
+                                        setYoutube(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaInstagram color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="url"
-                                        placeholder="Instagram Link"
-                                        value={instagram}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setInstagram(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaInstagram color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="url"
+                                      placeholder="Instagram Link"
+                                      value={instagram}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setInstagram(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaDiscord color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="url"
-                                        placeholder="Discord Link"
-                                        value={discord}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setDiscord(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
-                                </Stack>
-                              </TabPanel>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaDiscord color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="url"
+                                      placeholder="Discord Link"
+                                      value={discord}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setDiscord(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
+                              </Stack>
+                            </TabPanel>
 
-                              <TabPanel>
-                                <Stack spacing={3}>
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaBitcoin color="red.500" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="text"
-                                        placeholder="Bitcoin Wallet Address"
-                                        value={btc}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setBtc(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                            <TabPanel>
+                              <Stack spacing={3}>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaBitcoin color="red.500" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="text"
+                                      placeholder="Bitcoin Wallet Address"
+                                      value={btc}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setBtc(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaEthereum color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="text"
-                                        placeholder="Ethereum Wallet Address"
-                                        value={eth}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setEth(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaEthereum color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="text"
+                                      placeholder="Ethereum Wallet Address"
+                                      value={eth}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setEth(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaEthereum color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="text"
-                                        placeholder="Polygon Wallet Address"
-                                        value={matic}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setMatic(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaEthereum color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="text"
+                                      placeholder="Polygon Wallet Address"
+                                      value={matic}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setMatic(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaEthereum color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="text"
-                                        placeholder="BSC Wallet Address"
-                                        value={bsc}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setBsc(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaEthereum color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="text"
+                                      placeholder="BSC Wallet Address"
+                                      value={bsc}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setBsc(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaWallet color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="text"
-                                        placeholder="Filecoin Wallet Address"
-                                        value={fil}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setFil(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaWallet color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="text"
+                                      placeholder="Filecoin Wallet Address"
+                                      value={fil}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setFil(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
 
-                                  <FormControl>
-                                    <InputGroup>
-                                      <InputLeftElement pointerEvents="none">
-                                        <FaWallet color="gray.300" />
-                                      </InputLeftElement>
-                                      <Input
-                                        type="text"
-                                        placeholder="Solana Wallet Address"
-                                        value={sol}
-                                        size="sm"
-                                        onChange={(event) =>
-                                          setSol(event.currentTarget.value)
-                                        }
-                                      />
-                                    </InputGroup>
-                                  </FormControl>
-                                </Stack>
-                              </TabPanel>
+                                <FormControl>
+                                  <InputGroup>
+                                    <InputLeftElement pointerEvents="none">
+                                      <FaWallet color="gray.300" />
+                                    </InputLeftElement>
+                                    <Input
+                                      type="text"
+                                      placeholder="Solana Wallet Address"
+                                      value={sol}
+                                      size="sm"
+                                      onChange={(event) =>
+                                        setSol(event.currentTarget.value)
+                                      }
+                                    />
+                                  </InputGroup>
+                                </FormControl>
+                              </Stack>
+                            </TabPanel>
 
-                              <TabPanel>
-                              <Text mb='8px'>Extra Notes:</Text>
-      <Textarea
-        value={notes}
-        onChange={(event) =>
-          setNotes(event.currentTarget.value)
-        }
-        placeholder='Street Address , Bank Account, Some text information'
-        size='sm'
-      />
-                              </TabPanel>
+                            <TabPanel>
+                              <Text mb="8px">Extra Notes:</Text>
+                              <Textarea
+                                value={notes}
+                                onChange={(event) =>
+                                  setNotes(event.currentTarget.value)
+                                }
+                                placeholder="Street Address , Bank Account, Some text information"
+                                size="sm"
+                              />
+                            </TabPanel>
+                          </TabPanels>
+                        </Tabs>
 
-                                                 </TabPanels>
-                          </Tabs>
-
-                          <Stack direction="row" spacing={2}>
-                            <Button size="sm" rightIcon={<FaForward />} colorScheme="teal" type="submit" width="half" mt={4}>
-                              Save
-                            </Button>
-                            {jsonDataNew != null ? (
-                              <Button size="sm"  rightIcon={<FaForward />} colorScheme="green" width="half" mt={4} onClick={() => handleUpload()} >
-
-                                {isLoading ? (
-
-                                  <>  <CircularProgress isIndeterminate size="24px" /> Submitting </>
-                                ) : (
-                                  'Verify'
-                                )}
-
-                              </Button>
+                        <Stack direction="row" spacing={2}>
+                          <Button
+                            size="sm"
+                            rightIcon={<FaForward />}
+                            colorScheme="teal"
+                            type="submit"
+                            width="half"
+                            mt={4}
+                          >
+                            {flag ? (
+                              <>
+                                {" "}
+                                <CircularProgress
+                                  isIndeterminate
+                                  size="24px"
+                                />{" "}
+                                Saving{" "}
+                              </>
                             ) : (
-                              <></>
+                              "Save"
                             )}
+                          </Button>
+                          {jsonDataNew != null && !flag ? (
+                            <Button
+                              size="sm"
+                              rightIcon={<FaForward />}
+                              colorScheme="green"
+                              width="half"
+                              mt={4}
+                              onClick={() => handleUpload()}
+                            >
+                              {isLoading ? (
+                                <>
+                                  {" "}
+                                  <CircularProgress
+                                    isIndeterminate
+                                    size="24px"
+                                  />{" "}
+                                  Submitting{" "}
+                                </>
+                              ) : (
+                                "Verify"
+                              )}
+                            </Button>
+                          ) : (
+                            <></>
+                          )}
 
-                            {claimUrl != 'http://web3domain.org' ? (<TokenURI domainName={domain} TokenURI={claimUrl} />) : (<></>)}
-
-
-
-                          </Stack>
-                        </form>
-
-
-                      ) : (<Alert status='error'>
+                          {claimUrl != "http://web3domain.org" && !flag ? (
+                            <TokenURI domainName={domain} TokenURI={claimUrl} />
+                          ) : (
+                            <></>
+                          )}
+                        </Stack>
+                      </form>
+                    ) : (
+                      <Alert status="error">
                         <AlertIcon />
                         <AlertTitle>You are not authorized.</AlertTitle>
-                      </Alert>)}
-                    </div>
-
-                  )}
-                </Stack>
-              
+                      </Alert>
+                    )}
+                  </div>
+                )}
+              </Stack>
             </Stack>
-
-          ) :
-            (<>{NETWORK_ERROR}</>)
-          }
-
+          ) : (
+            <>{NETWORK_ERROR}</>
+          )}
         </Box>
       </Container>
     </Flex>
   );
-
 }
